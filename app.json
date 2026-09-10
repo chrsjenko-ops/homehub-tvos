@@ -17,7 +17,8 @@
       [
         "@react-native-tvos/config-tv",
         {
-          "isTV": true
+          "isTV": true,
+          "tvosDeploymentTarget": "15.1"
         }
       ]
     ],

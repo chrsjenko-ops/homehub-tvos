@@ -23,12 +23,16 @@ jobs:
         run: npm ci || npm install
 
       - name: ⚙️ Expo Prebuild (Generate native tvOS project)
+        env:
+          EXPO_TV: "1"
         run: npx expo prebuild --platform ios --clean
 
       - name: 🍏 CocoaPods Install
+        env:
+          EXPO_TV: "1"
         run: |
           cd ios
-          pod install || true
+          pod install
 
       - name: 🔨 Build tvOS App (Unsigned)
         run: |
@@ -65,7 +69,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
             PROVISIONING_PROFILE="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             -derivedDataPath build
 
       - name: 📦 Package into IPA for Sideloadly
