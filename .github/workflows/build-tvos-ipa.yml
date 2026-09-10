@@ -34,7 +34,7 @@ jobs:
           cd ios
           pod install
 
-      - name: 🔨 Build tvOS App (Unsigned)
+      - name: 🔨 Build & Archive tvOS App (Unsigned)
         run: |
           cd ios
           ls -la
@@ -60,31 +60,25 @@ jobs:
           fi
           echo "Detected Scheme: '$SCHEME'"
 
-          xcodebuild build \
+          xcodebuild archive \
             $BUILD_TARGET \
             -scheme "$SCHEME" \
             -configuration Release \
             -destination "generic/platform=tvOS" \
             -sdk appletvos \
+            -archivePath "$PWD/build/HomeHubTV.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
             PROVISIONING_PROFILE="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            -derivedDataPath build
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: 📦 Package into IPA for Sideloadly
         run: |
           mkdir -p Payload
-          APP_PATH=$(find . -name "*.app" -type d | head -n 1)
-          echo "Found compiled app at: '$APP_PATH'"
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "Error: .app bundle not found in build directory"
-            find . -maxdepth 8
-            exit 1
-          fi
-          cp -R "$APP_PATH" Payload/
+          cp -R ios/build/HomeHubTV.xcarchive/Products/Applications/*.app Payload/
+          ls -la Payload/
           zip -r HomeHubTV.ipa Payload
           rm -rf Payload
 
