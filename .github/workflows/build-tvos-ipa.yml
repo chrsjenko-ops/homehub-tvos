@@ -1,7 +1,7 @@
 name: Build Apple TV IPA (for Sideloadly)
 
 on:
-  workflow_dispatch: # Allows you to click 'Run workflow' in GitHub anytime
+  workflow_dispatch:
   push:
     branches: [ main, master ]
 
@@ -25,17 +25,39 @@ jobs:
       - name: ⚙️ Expo Prebuild (Generate native tvOS project)
         run: npx expo prebuild --platform ios --clean
 
+      - name: 🍏 CocoaPods Install
+        run: |
+          cd ios
+          pod install || true
+
       - name: 🔨 Build tvOS App (Unsigned)
         run: |
           cd ios
-          WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
+          ls -la
           
-          # Detect the scheme automatically
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | tr -d ' ' | head -n 1)
-          echo "Building Workspace: $WORKSPACE with Scheme: $SCHEME"
-          
+          # Check for workspace or xcodeproj
+          if ls -d *.xcworkspace 1> /dev/null 2>&1; then
+            WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
+            BUILD_TARGET="-workspace $WORKSPACE_NAME"
+          elif ls -d *.xcodeproj 1> /dev/null 2>&1; then
+            PROJECT_NAME=$(ls -d *.xcodeproj | head -n 1)
+            BUILD_TARGET="-project $PROJECT_NAME"
+          else
+            echo "Error: No Xcode project or workspace found in ios directory"
+            exit 1
+          fi
+
+          echo "Detected Build Target: $BUILD_TARGET"
+
+          # Detect primary scheme
+          SCHEME=$(xcodebuild $BUILD_TARGET -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | tr -d ' \t\r' | head -n 1)
+          if [ -z "$SCHEME" ]; then
+            SCHEME="HomeHub TV"
+          fi
+          echo "Detected Scheme: '$SCHEME'"
+
           xcodebuild build \
-            -workspace "$WORKSPACE" \
+            $BUILD_TARGET \
             -scheme "$SCHEME" \
             -configuration Release \
             -destination "generic/platform=tvOS" \
@@ -49,8 +71,12 @@ jobs:
       - name: 📦 Package into IPA for Sideloadly
         run: |
           mkdir -p Payload
-          APP_PATH=$(find ios/build/Build/Products/Release-appletvos -name "*.app" | head -n 1)
+          APP_PATH=$(find ios/build -name "*.app" -maxdepth 5 | head -n 1)
           echo "Found compiled app at: $APP_PATH"
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: .app bundle not found in build directory"
+            exit 1
+          fi
           cp -R "$APP_PATH" Payload/
           zip -r HomeHubTV.ipa Payload
           rm -rf Payload
