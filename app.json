@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "HomeHub TV",
+    "slug": "homehub-tvos",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "isTV": true,
+      "supportsTablet": false,
+      "bundleIdentifier": "com.homehub.tvos"
+    },
+    "plugins": [
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "isTV": true
+        }
+      ]
+    ]
+  }
+}
