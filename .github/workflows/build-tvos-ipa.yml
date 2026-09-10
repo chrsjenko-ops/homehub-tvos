@@ -1,0 +1,63 @@
+name: Build Apple TV IPA (for Sideloadly)
+
+on:
+  workflow_dispatch: # Allows you to click 'Run workflow' in GitHub anytime
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ipa:
+    name: Build tvOS IPA
+    runs-on: macos-14
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci || npm install
+
+      - name: ⚙️ Expo Prebuild (Generate native tvOS project)
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 🔨 Build tvOS App (Unsigned)
+        run: |
+          cd ios
+          WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -n 1)
+          
+          # Detect the scheme automatically
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | tr -d ' ' | head -n 1)
+          echo "Building Workspace: $WORKSPACE with Scheme: $SCHEME"
+          
+          xcodebuild build \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=tvOS" \
+            -sdk appletvos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE="" \
+            -derivedDataPath build
+
+      - name: 📦 Package into IPA for Sideloadly
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(find ios/build/Build/Products/Release-appletvos -name "*.app" | head -n 1)
+          echo "Found compiled app at: $APP_PATH"
+          cp -R "$APP_PATH" Payload/
+          zip -r HomeHubTV.ipa Payload
+          rm -rf Payload
+
+      - name: 🚀 Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HomeHubTV-AppleTV-IPA
+          path: HomeHubTV.ipa
+          retention-days: 14

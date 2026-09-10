@@ -8,7 +8,10 @@
     "ios": {
       "isTV": true,
       "supportsTablet": false,
-      "bundleIdentifier": "com.homehub.tvos"
+      "bundleIdentifier": "com.homehub.tvos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "plugins": [
       [
@@ -17,6 +20,11 @@
           "isTV": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3e2bfa0c-6e74-4717-be3f-d9a06322204c"
+      }
+    }
   }
 }
