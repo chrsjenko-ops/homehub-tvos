@@ -52,14 +52,8 @@ jobs:
 
           echo "Detected Build Target: $BUILD_TARGET"
 
-          # Print schemes
-          xcodebuild $BUILD_TARGET -list
-
-          # Detect primary scheme, filtering out Pods and stripping spaces/returns
-          SCHEME=$(xcodebuild $BUILD_TARGET -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | tr -d ' \t\r' | grep -v '^Pods' | head -n 1)
-          if [ -z "$SCHEME" ]; then
-            SCHEME="HomeHubTV"
-          fi
+          # Use the application scheme (HomeHubTV)
+          SCHEME="HomeHubTV"
           echo "Selected Scheme: '$SCHEME'"
 
           # Ensure archive destination directory exists
