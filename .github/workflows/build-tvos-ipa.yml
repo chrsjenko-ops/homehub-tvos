@@ -1,0 +1,113 @@
+name: Build Apple TV IPA (for Sideloadly)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ipa:
+    name: Build tvOS IPA
+    runs-on: macos-14
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci || npm install
+
+      - name: ⚙️ Expo Prebuild (Generate native tvOS project)
+        env:
+          EXPO_TV: "1"
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 🍏 CocoaPods Install
+        env:
+          EXPO_TV: "1"
+        run: |
+          cd ios
+          pod install
+
+      - name: 🔨 Build & Archive tvOS App (Unsigned)
+        run: |
+          cd ios
+          ls -la
+          
+          # Check for workspace or xcodeproj
+          if ls -d *.xcworkspace 1> /dev/null 2>&1; then
+            WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
+            BUILD_TARGET="-workspace $WORKSPACE_NAME"
+          elif ls -d *.xcodeproj 1> /dev/null 2>&1; then
+            PROJECT_NAME=$(ls -d *.xcodeproj | head -n 1)
+            BUILD_TARGET="-project $PROJECT_NAME"
+          else
+            echo "Error: No Xcode project or workspace found in ios directory"
+            exit 1
+          fi
+
+          echo "Detected Build Target: $BUILD_TARGET"
+
+          # Print available schemes
+          xcodebuild $BUILD_TARGET -list
+
+          # Detect primary scheme, filtering out Pods schemes
+          SCHEME=$(xcodebuild $BUILD_TARGET -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[ \t]*//;s/[ \t]*$//' | grep -v '^Pods' | grep -v '^$' | head -n 1)
+          if [ -z "$SCHEME" ]; then
+            SCHEME="HomeHub TV"
+          fi
+          echo "Selected Scheme: '$SCHEME'"
+
+          mkdir -p "$GITHUB_WORKSPACE/build"
+
+          xcodebuild archive \
+            $BUILD_TARGET \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=tvOS" \
+            -sdk appletvos \
+            -archivePath "$GITHUB_WORKSPACE/build/HomeHubTV.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: 📦 Package into IPA for Sideloadly
+        run: |
+          echo "Listing build directory contents:"
+          ls -la "$GITHUB_WORKSPACE/build" || true
+          
+          # Locate .app bundle inside xcarchive or build tree
+          APP_PATH=$(find "$GITHUB_WORKSPACE" -path "*/Applications/*.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "Searching all directories for .app..."
+            APP_PATH=$(find "$GITHUB_WORKSPACE" -name "*.app" -type d | grep -v "\.dSYM" | head -n 1)
+          fi
+
+          echo "Found .app bundle at: '$APP_PATH'"
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "Error: Could not locate compiled .app bundle"
+            find "$GITHUB_WORKSPACE" -maxdepth 6
+            exit 1
+          fi
+
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          ls -la Payload/
+          zip -r HomeHubTV.ipa Payload
+          rm -rf Payload
+          ls -la HomeHubTV.ipa
+
+      - name: 🚀 Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HomeHubTV-AppleTV-IPA
+          path: HomeHubTV.ipa
+          retention-days: 14
