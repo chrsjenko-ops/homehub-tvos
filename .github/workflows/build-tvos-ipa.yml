@@ -34,12 +34,11 @@ jobs:
           cd ios
           pod install
 
-      - name: 🔨 Build & Archive tvOS App (Unsigned)
+      - name: 🔨 Build & Package tvOS IPA (for Sideloadly)
         run: |
           cd ios
-          ls -la
           
-          # Check for workspace or xcodeproj
+          # Detect workspace or project
           if ls -d *.xcworkspace 1> /dev/null 2>&1; then
             WORKSPACE_NAME=$(ls -d *.xcworkspace | head -n 1)
             BUILD_TARGET="-workspace $WORKSPACE_NAME"
@@ -53,17 +52,20 @@ jobs:
 
           echo "Detected Build Target: $BUILD_TARGET"
 
-          # Print available schemes
+          # Print schemes
           xcodebuild $BUILD_TARGET -list
 
-          # Detect primary scheme, filtering out Pods schemes
-          SCHEME=$(xcodebuild $BUILD_TARGET -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | sed 's/^[ \t]*//;s/[ \t]*$//' | grep -v '^Pods' | grep -v '^$' | head -n 1)
+          # Detect primary scheme, filtering out Pods and stripping spaces/returns
+          SCHEME=$(xcodebuild $BUILD_TARGET -list | awk '/Schemes:/{flag=1;next}/^$/{flag=0}flag' | tr -d ' \t\r' | grep -v '^Pods' | head -n 1)
           if [ -z "$SCHEME" ]; then
-            SCHEME="HomeHub TV"
+            SCHEME="HomeHubTV"
           fi
           echo "Selected Scheme: '$SCHEME'"
 
+          # Ensure archive destination directory exists
           mkdir -p "$GITHUB_WORKSPACE/build"
+          ARCHIVE_PATH="$GITHUB_WORKSPACE/build/HomeHubTV.xcarchive"
+          echo "Archive Target Path: $ARCHIVE_PATH"
 
           xcodebuild archive \
             $BUILD_TARGET \
@@ -71,7 +73,7 @@ jobs:
             -configuration Release \
             -destination "generic/platform=tvOS" \
             -sdk appletvos \
-            -archivePath "$GITHUB_WORKSPACE/build/HomeHubTV.xcarchive" \
+            -archivePath "$ARCHIVE_PATH" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -79,31 +81,26 @@ jobs:
             PROVISIONING_PROFILE="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES
 
-      - name: 📦 Package into IPA for Sideloadly
-        run: |
-          echo "Listing build directory contents:"
-          ls -la "$GITHUB_WORKSPACE/build" || true
-          
-          # Locate .app bundle inside xcarchive or build tree
-          APP_PATH=$(find "$GITHUB_WORKSPACE" -path "*/Applications/*.app" -type d | head -n 1)
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "Searching all directories for .app..."
-            APP_PATH=$(find "$GITHUB_WORKSPACE" -name "*.app" -type d | grep -v "\.dSYM" | head -n 1)
-          fi
+          cd "$GITHUB_WORKSPACE"
+          echo "Inspecting archive directory:"
+          find build -maxdepth 5 || true
 
-          echo "Found .app bundle at: '$APP_PATH'"
+          # Locate .app bundle inside xcarchive
+          APP_PATH=$(find build -name "*.app" -type d | grep -v "\.dSYM" | head -n 1)
+          echo "Found compiled .app bundle at: '$APP_PATH'"
+
           if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "Error: Could not locate compiled .app bundle"
-            find "$GITHUB_WORKSPACE" -maxdepth 6
+            echo "Error: Could not locate compiled .app bundle in build output"
             exit 1
           fi
 
+          # Package into standard IPA for Sideloadly
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
           ls -la Payload/
           zip -r HomeHubTV.ipa Payload
           rm -rf Payload
-          ls -la HomeHubTV.ipa
+          ls -lh HomeHubTV.ipa
 
       - name: 🚀 Upload IPA Artifact
         uses: actions/upload-artifact@v4
