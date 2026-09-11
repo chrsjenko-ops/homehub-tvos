@@ -20,7 +20,8 @@
           "isTV": true,
           "tvosDeploymentTarget": "15.1"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {
