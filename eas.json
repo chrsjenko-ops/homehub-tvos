@@ -7,17 +7,35 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_TV": "1"
+      },
       "ios": {
         "simulator": false
       }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_TV": "1"
+      },
       "ios": {
         "simulator": false
       }
     },
+    "preview-simulator": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_TV": "1"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
+      "env": {
+        "EXPO_TV": "1"
+      },
       "ios": {
         "simulator": false
       }

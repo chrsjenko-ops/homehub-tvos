@@ -38,6 +38,38 @@ npx expo run:ios --device "Apple TV"
 
 ---
 
+## Building with Expo (EAS Build)
+
+The project is configured for EAS Build targeting tvOS using `@react-native-tvos/config-tv` with `EXPO_TV=1`.
+
+### 1. Apple TV Simulator Build (No Apple Developer credentials required)
+```bash
+npx eas-cli build --platform ios --profile preview-simulator
+```
+Or via script:
+```bash
+npm run build:tvos:sim
+```
+This produces a `.tar.gz` with the `.app` bundle ready to run in the Apple TV Simulator.
+
+### 2. Device / Ad-Hoc Build (For physical Apple TV)
+```bash
+npx eas-cli build --platform ios --profile preview
+```
+Or via script:
+```bash
+npm run build:tvos
+```
+*Note: For physical Apple TV builds via EAS, tvOS requires a tvOS provisioning profile created on developer.apple.com with bundle ID `com.homehub.tvos` and uploaded to your EAS credentials.*
+
+### 3. Production / App Store Build
+```bash
+npx eas-cli build --platform ios --profile production
+```
+
+---
+
 ## Configuration Reference
 - **Target URL**: `https://nginx.ntfsdata.com/index.html` (configured in `App.js`)
 - **Bundle Identifier**: `com.homehub.tvos` (configured in `app.json`)
+- **EAS Project ID**: `3e2bfa0c-6e74-4717-be3f-d9a06322204c`

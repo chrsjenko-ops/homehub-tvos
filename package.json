@@ -5,7 +5,15 @@
   "scripts": {
     "start": "expo start",
     "ios": "expo run:ios",
-    "prebuild": "expo prebuild"
+    "prebuild": "expo prebuild",
+    "build:tvos": "eas build --platform ios --profile preview",
+    "build:tvos:sim": "eas build --platform ios --profile preview-simulator",
+    "build:tvos:prod": "eas build --platform ios --profile production"
+  },
+  "expo": {
+    "install": {
+      "exclude": ["react-native"]
+    }
   },
   "dependencies": {
     "expo": "~52.0.0",
